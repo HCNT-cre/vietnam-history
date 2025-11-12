@@ -9,7 +9,7 @@ services:
       - ./backend:/app
       - ./rag:/rag
     ports:
-      - "8000:8000"
+      - "8001:8000"
     depends_on:
       - postgres
       - redis
@@ -23,7 +23,7 @@ services:
       - ./frontend:/app
       - /app/node_modules
     ports:
-      - "5173:4173"
+      - "5174:4173"
     depends_on:
       - backend
   postgres:
@@ -33,11 +33,11 @@ services:
       POSTGRES_USER: viet
       POSTGRES_PASSWORD: password
     ports:
-      - "55432:5432"
+      - "5433:5432"
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "6380:6379"
   
   # Không cần nữa - đã fake bằng LLM
   # etcd:
