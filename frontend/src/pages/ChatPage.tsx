@@ -53,6 +53,7 @@ const ChatPage = () => {
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
   const [showSidebar, setShowSidebar] = useState(true);
   const [isExtractingCitations, setIsExtractingCitations] = useState(false);
+  const [conversationsLoaded, setConversationsLoaded] = useState(false);
   const hasInitialized = useRef(false);
   const mode = params.get("mode"); // 'advisor' hoặc null
   const agentFromQuery = params.get("agent") ?? (mode === "advisor" ? "agent_general_search" : null);
@@ -65,8 +66,10 @@ const ChatPage = () => {
     try {
       const res = await api.get("/conversations");
       setConversations(res.data);
+      setConversationsLoaded(true);
     } catch (err) {
       console.error("Không thể load conversations:", err);
+      setConversationsLoaded(true);
     }
   }, []);
 
@@ -304,7 +307,7 @@ const ChatPage = () => {
     }
 
     // Đợi load conversations xong
-    if (conversations.length === 0) {
+    if (!conversationsLoaded) {
       return;
     }
 
@@ -337,7 +340,7 @@ const ChatPage = () => {
     };
 
     void initConversation();
-  }, [mode, agentFromQuery, conversations, createConversation, loadConversationHistory]);
+  }, [mode, agentFromQuery, conversationsLoaded, conversations, createConversation, loadConversationHistory]);
 
   return (
     <div className="flex gap-4">
