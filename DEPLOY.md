@@ -40,6 +40,11 @@ VITE_APP_VERSION=production
 EOF
 ```
 
+**LƯU Ý:** Trong file backend/.env, ALLOWED_ORIGINS là string phân cách bằng dấu phẩy:
+```
+ALLOWED_ORIGINS=http://localhost:5174,http://your-domain.com
+```
+
 ### 3. Chạy Docker
 ```bash
 docker compose up -d

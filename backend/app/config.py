@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     graph_password: str = "password"
     graph_database: str = "neo4j"
 
-    allowed_origins: List[str] = ["http://localhost:5174"]
+    allowed_origins: str = "http://localhost:5174"
 
     email_sender: str = "hello@vietsaga.app"
     email_api_key: str | None = None
@@ -49,13 +49,11 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
     
-    @field_validator("allowed_origins", mode="before")
-    @classmethod
-    def parse_cors_origins(cls, v):
-        """Parse ALLOWED_ORIGINS từ string (comma-separated) thành list."""
-        if isinstance(v, str):
-            return [origin.strip() for origin in v.split(",") if origin.strip()]
-        return v
+    def get_allowed_origins_list(self) -> List[str]:
+        """Parse ALLOWED_ORIGINS string thành list."""
+        if isinstance(self.allowed_origins, str):
+            return [origin.strip() for origin in self.allowed_origins.split(",") if origin.strip()]
+        return [self.allowed_origins]
 
 
 @lru_cache
