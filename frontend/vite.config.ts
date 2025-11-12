@@ -5,5 +5,11 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
+    host: true, // Allow external access
+    allowedHosts: [
+      'localhost',
+      'khanhan-lytutrong.site',
+      '.khanhan-lytutrong.site', // Wildcard subdomain
+    ],
   },
 });
