@@ -1,0 +1,59 @@
+# TESTING.prompt
+
+## Mục tiêu tổng quát
+Bảo đảm VietSaga vận hành ổn định như sản phẩm hoàn chỉnh: auth an toàn, multi-agent chat chính xác, dữ liệu quest/badge/memory được lưu. Bộ test phải chạy trong CI và bao phủ các luồng quan trọng nhất.
+
+## Backend – Pytest
+### Unit tests bắt buộc
+1. **Auth service** – kiểm tra hash Argon2id, sinh/giải JWT, cơ chế refresh rotation (token tái sử dụng phải bị chặn).
+2. **Middleware JWT** – request không token → 401; token hết hạn → mã `token_expired`; token hợp lệ → `current_user` tồn tại.
+3. **Parser router** – hàm `extract_first_json` phải lấy được JSON đầu tiên từ chuỗi lẫn text; nếu không có → raise `ValueError`.
+4. **RAG service** – mock FAISS/metadata để đảm bảo `retrieve(query, top_k, filters)` trả đúng số lượng, đúng id.
+5. **Quest service** – khi quest chuyển `completed` thì tạo bản ghi `user_badges` và notification tương ứng.
+
+### Integration / API
+- Dùng SQLite in-memory + SQLModel cho DB test, `fakeredis` cho Redis.
+1. `/auth/register`, `/auth/login`, `/auth/token/refresh`: case thành công, sai mật khẩu, refresh token tái sử dụng.
+2. `/users/me`, `/users/me/history`: yêu cầu auth, dữ liệu trả đúng.
+3. `/timeline`, `/library/topics`: seed fixtures trước.
+4. `/router`, `/agents/chat`: mock OpenAI, xác thực thứ tự gọi, `used_docs` phản ánh kết quả RAG, session lưu DB.
+5. `/quests`, `/quests/{id}/progress`, `/badges`: status cập nhật, badge unlock.
+6. `/memory/last` GET/PUT.
+7. `/notifications` GET + mark read.
+- Gắn marker `@pytest.mark.integration` để dễ tách suite.
+
+### Công cụ hỗ trợ
+- `pytest-asyncio`, `httpx.AsyncClient` cho endpoint async.
+- `coverage.py`: fail nếu coverage dịch vụ quan trọng < 80% hoặc tổng thể < 70%.
+
+## Frontend – Vitest + React Testing Library
+### Case chính
+1. **Form auth** – hiển thị lỗi tiếng Việt khi email/mật khẩu không hợp lệ; case thành công lưu token mock vào store.
+2. **Route guard** – truy cập `/chat` khi chưa đăng nhập phải redirect `/login`.
+3. **Timeline** – render đầy đủ node từ mock API, click node → `navigate('/chat?agent=...')`.
+4. **Chat flow** – mock `/router` → `/agents/chat`, đảm bảo UI hiển thị hai trạng thái loading và panel citation chứa doc id.
+5. **Nhiệm vụ** – click “Hoàn thành” gọi `/quests/{id}/progress`, cập nhật state.
+6. **Tìm kiếm thư viện** – debounce 400ms, dùng fake timers để xác nhận số lần gọi API.
+7. **Hồ sơ** – render thống kê từ `/progress/summary`, hiển thị bảng/biểu đồ placeholder.
+
+### Tiện ích test
+- Tạo `test-utils/renderWithProviders` gồm Router, Auth store, QueryClient.
+- Dùng Mock Service Worker (`msw`) để mô phỏng API.
+
+## E2E (Playwright hoặc Cypress)
+Chạy định kỳ (mỗi ngày hoặc trước release):
+1. Đăng ký → đăng nhập → thấy timeline.
+2. Đặt câu hỏi (mock OpenAI) → nhận câu trả lời + toast quest.
+3. Duyệt thư viện → mở nội dung → nhấn “Chat với nhân vật này”.
+4. Logout, thử truy cập trang bảo vệ → bị chặn.
+
+## Kiểm tra hiệu năng & chất lượng
+- Lighthouse CI: Performance ≥ 80, Accessibility ≥ 90, Best Practices ≥ 90.
+- k6/Gatling: tải `/router` + `/agents/chat` với 20 người dùng đồng thời, p95 < 4 giây.
+
+## CI pipeline gợi ý (GitHub Actions)
+1. Thiết lập môi trường: cài pnpm, poetry/pip, khởi chạy Postgres + Redis bằng service container.
+2. Job FE: `pnpm install`, `pnpm lint`, `pnpm test -- --coverage`.
+3. Job BE: `pip install -r requirements-dev.txt`, `pytest --maxfail=1 --cov=app`.
+4. Build: `pnpm build`, `docker build` cho FE & BE (tuỳ chính sách).
+5. Xuất báo cáo coverage/test làm artifact để review.

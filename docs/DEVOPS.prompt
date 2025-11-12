@@ -1,0 +1,86 @@
+# DEVOPS.prompt
+
+## 1. Biến môi trường
+Tạo `.env` (backend) và `.env.local` (frontend). Ví dụ backend:
+```
+DATABASE_URL=postgresql+asyncpg://viet:password@localhost:5432/vietsaga
+REDIS_URL=redis://localhost:6379/0
+JWT_SECRET=thay-bang-chuoi-32-ky-tu
+ACCESS_TOKEN_EXPIRES=3600
+REFRESH_TOKEN_EXPIRES=1209600
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-4o-mini
+OPENAI_EMBED_MODEL=text-embedding-3-large
+TEMPERATURE=0.3
+RAG_TOP_K=4
+RAG_INDEX_PATH=./rag/faiss.index
+RAG_META_PATH=./rag/meta.json
+EMAIL_SENDER=hello@vietsaga.app
+EMAIL_API_KEY=fake-key
+ALLOWED_ORIGINS=http://localhost:5173
+LOG_LEVEL=info
+```
+Frontend `.env.local`:
+```
+VITE_API_BASE=http://localhost:8000/api/v1
+VITE_APP_VERSION=dev
+```
+
+## 2. Chạy local
+### Docker Compose (khuyến nghị)
+`docker-compose.yml` nên có:
+- `frontend`: Node 20 + pnpm, build Vite, serve bằng Vite dev hoặc nginx.
+- `backend`: Python 3.11, mount mã nguồn, chạy `uvicorn app.main:app --reload`.
+- `postgres`: image chính thức, script khởi tạo DB `vietsaga`.
+- `redis`: cache + lưu token.
+- Volume `rag-data` mount vào `/app/rag` trong backend.
+
+Lệnh chung:
+```bash
+docker compose up backend frontend postgres redis
+```
+Container backend nên tự chạy `alembic upgrade head` khi khởi động.
+
+### Không dùng Docker
+1. Khởi động Postgres + Redis.
+2. Backend: `poetry install` (hoặc pip) → `poetry run uvicorn app.main:app --reload`.
+3. Frontend: `pnpm install` → `pnpm dev -- --open`.
+
+## 3. Quản lý dữ liệu
+- Artefact RAG (`faiss.index`, `meta.json`, `rag_manifest.json`) đặt trong thư mục `rag/`. Mỗi lần cập nhật phải tăng version trong manifest.
+- Script seed: `python scripts/seed_timeline.py`, `python scripts/seed_quests.py` sau khi migrate.
+
+## 4. Logging & monitoring
+- Backend log JSON ra stdout, gồm `trace_id`, `user_id`, `route`, `status`, `duration_ms`.
+- Frontend dev có thể log nhẹ; build production loại bỏ console.
+- Triển khai thực tế: chuyển log sang ELK/Loki, đặt cảnh báo khi error rate > 1%.
+- Thêm endpoint `/healthz` trả trạng thái Postgres + Redis + RAG.
+- Có thể mở `/metrics` (bảo vệ bằng token) để Prometheus scrape.
+
+## 5. Quy trình deploy
+1. GitHub Actions build image FE & BE mỗi khi merge `main`.
+2. Đẩy image lên registry (GHCR/ECR) với tag `vX.Y.Z` + `sha`.
+3. Triển khai lên Render/Fly/Kubernetes…; load `.env.production` từ secret manager.
+4. Sau deploy, chạy `alembic upgrade head` tự động.
+5. Gọi warmup tới `/api/v1/timeline` và `/api/v1/library/topics` để cache.
+
+## 6. Sao lưu & khôi phục
+- Postgres: backup hàng ngày, lưu 14 ngày, bật PITR nếu có.
+- Redis: snapshot RDB (tuỳ chọn) – có thể tái tạo nếu mất.
+- RAG: lưu version hoá lên S3/MinIO (`vietsaga-rag`) kèm checksum.
+
+## 7. Bảo mật vận hành
+- Bắt buộc HTTPS qua CDN/proxy, bật HSTS, TLS 1.2+.
+- Rotate `OPENAI_API_KEY`, `JWT_SECRET`, `EMAIL_API_KEY` ít nhất 60 ngày/lần.
+- Rate limit ở reverse proxy (nginx/traefik) + middleware backend.
+- Thiết lập CSP, X-Frame-Options, X-Content-Type-Options ở tầng FE.
+- Dùng secret manager, không commit `.env`.
+
+## 8. Quan sát & cảnh báo
+- Theo dõi: tỉ lệ lỗi HTTP, latency OpenAI, tỷ lệ truy hồi RAG, tỷ lệ đăng nhập thành công, số kết nối DB.
+- Báo động khi: refresh token lỗi hàng loạt, thiếu file FAISS/meta, quest awarding thất bại, PG gần đầy disk.
+
+## 9. Runbook nhanh
+- **OpenAI gặp sự cố**: chuyển `OPENAI_MODEL` sang model dự phòng, hiển thị banner thông báo.
+- **RAG hỏng**: lấy bản sao lưu mới nhất, gắn lại volume, chạy `/admin/rag/health` xác nhận.
+- **Migration lỗi**: rollback release, kiểm tra log Alembic, sửa migration rồi chạy lại.

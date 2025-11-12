@@ -1,0 +1,97 @@
+**Vai trò Cursor:** Triển khai backend VietSaga bằng FastAPI chuẩn sản phẩm, tuân thủ `docs/API_SPEC.md`. Bao gồm auth JWT, Postgres, Redis, RAG, logging JSON, test Pytest. Giao tiếp người dùng (log, thông báo lỗi) bằng tiếng Việt.
+
+## 1. Cấu trúc thư mục gợi ý
+```
+app/
+  main.py
+  config.py           # Pydantic BaseSettings, cache qua lru_cache
+  db.py               # Async engine SQLAlchemy/SQLModel + session
+  deps.py             # Dependencies (current_user, services)
+  middleware/
+    auth.py           # Kiểm tra JWT, gắn trace_id
+    logging.py
+  models/             # SQLModel hoặc SQLAlchemy ORM
+  schemas/            # Pydantic models per module
+  routers/
+    auth.py
+    users.py
+    timeline.py
+    library.py
+    search.py
+    chat.py           # /router, /agents/chat, feedback
+    quests.py
+    badges.py
+    memory.py
+    notifications.py
+    admin.py
+  services/
+    auth.py           # password hashing, token
+    openai_client.py
+    rag.py
+    quests.py
+    notifications.py
+    email.py (stub)
+  utils/
+    parsing.py        # extract JSON, format context
+  prompts/
+    master_router.txt
+    agent_template.txt
+```
+Mọi router mount dưới `/api/v1`.
+
+## 2. Cấu hình & môi trường
+- Biến môi trường bắt buộc (xem `docs/DEVOPS.prompt`).
+- `Settings` gồm: `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `ACCESS_TOKEN_EXPIRES`, `REFRESH_TOKEN_EXPIRES`, `OPENAI_*`, `RAG_*`, `EMAIL_*`, `ALLOWED_ORIGINS`.
+- Tải prompt từ `/docs` khi chạy dev, bundle cùng ứng dụng khi build.
+
+## 3. Auth & người dùng
+- Hash mật khẩu bằng Argon2id (`passlib.hash`), kiểm tra độ mạnh.
+- JWT: HS256, claims gồm `sub`, `exp`, `jti`, `role`.
+- Refresh token rotation: lưu `jti` trong Redis hoặc bảng `refresh_tokens`. Nếu token bị tái sử dụng → xoá toàn bộ phiên và báo lỗi.
+- Endpoint quên mật khẩu: tạo token tạm ( lưu DB/Redis ), email service stub (ghi log) để DevOps thay bằng dịch vụ thực.
+- Middleware rate limit cơ bản cho `/auth/login` (Redis incr TTL).
+
+## 4. Dữ liệu & migrations
+- Dùng SQLModel hoặc SQLAlchemy + Alembic. Bảng tối thiểu: users, user_preferences, sessions, messages, quests, user_quests, badges, user_badges, notifications, user_notifications, memory, timeline_nodes, library_topics, library_docs.
+- Seed dữ liệu timeline/quest/badge bằng scripts trong `scripts/`.
+
+## 5. Multi-agent + RAG
+- `RAGService` đọc `faiss.index`, `meta.json`, `rag_manifest.json`. Nếu file thiếu → raise `RagaUnavailableError`.
+- Hàm `retrieve(query, top_k, filters=None)` trả `List[DocChunk]`.
+- `/router`: load prompt master, gọi OpenAI Chat, parse JSON bằng `extract_first_json` (regex + json.loads). Validate agent.
+- `/agents/chat`: chuẩn bị `[CONTEXT]`, ghép persona, gọi OpenAI, lưu transcript vào bảng `sessions/messages`, trả `answer`, `used_docs`, `tokens`. Nếu RAG rỗng, thêm câu “Không có tư liệu kèm theo” trong system.
+- `/agents/feedback`: lưu rating, message_id, ghi log để cải tiến dữ liệu.
+
+## 6. Library, timeline, search
+- `/timeline`: lấy từ DB hoặc cache Redis (TTL 10 phút).
+- `/library/topics`: filter theo `period`, `type`, `tags`. Dữ liệu có thể lưu DB hoặc đọc `meta.json` (cache).
+- `/library/documents/{id}`: trả metadata + text (đọc từ meta). Dùng cho citation panel.
+- `/search`: proxy RAG (giống retrieve nhưng chỉ trả metadata/text).
+
+## 7. Quests, badges, memory, notifications
+- `services/quests.py`: xác định điều kiện unlock, cập nhật `user_quests`, tự động thêm `user_badges` + tạo notification.
+- `memory`: lưu `user_id`, `agent_id`, `topic`, `session_id`, `updated_at`.
+- `notifications`: query theo user, đánh dấu đã đọc, hỗ trợ bulk update.
+
+## 8. Logging & quan sát
+- Dùng `structlog` hoặc logging format JSON. Mỗi request log `{trace_id, user_id, route, status, duration_ms, rag_hits}`.
+- OpenAI client log latency + token usage.
+- Endpoint `/healthz`: kiểm tra Postgres, Redis, RAG.
+
+## 9. Kiểm thử bắt buộc
+- Unit: auth service (hash/verify/token), router JSON parser, RAG service (mock FAISS), quest awarding.
+- Integration: `/auth/*`, `/router`, `/agents/chat`, `/quests`, `/memory`, `/notifications` dùng `AsyncClient` + DB tạm (SQLite) + fakeredis.
+- Coverage ≥ 80% cho services quan trọng (auth, chat, rag, quests).
+
+## 10. Công cụ dev
+- Makefile: `make dev`, `make lint`, `make test`, `make fmt`.
+- Script seed: `python scripts/seed_timeline.py`, `seed_quests.py`.
+- Alembic migration ghi rõ `down_revision`.
+
+## 11. Điều kiện hoàn thành backend
+1. Tất cả endpoint trong `docs/API_SPEC.md` hoạt động & trả đúng schema.
+2. Auth hoàn chỉnh: đăng ký → đăng nhập → refresh → logout → reset password.
+3. Session chat + quest/badge ghi vào Postgres.
+4. RAG service chạy được (hoặc mock an toàn khi thiếu file) mà không làm app crash.
+5. Logging JSON + trace_id hiện diện.
+6. Pytest pass với coverage yêu cầu.

@@ -1,0 +1,54 @@
+**Mục tiêu:** Diễn tả trải nghiệm người dùng của VietSaga phiên bản production, từ onboarding → học → quay lại → nhận thông báo.
+
+## Stage 0 – Onboarding & Auth
+- **Register**: multi-step modal (1) Email & mật khẩu, (2) Thông tin hiển thị (tên, avatar chọn sẵn, mục tiêu học). Sau submit cho biết cần xác minh email.
+- **Login**: form tối giản, link “Quên mật khẩu”. Loading state trong nút khi đang gọi API.
+- **Reset password**: nhập email → hiển thị thông báo “Kiểm tra email”. Khi vào link reset → form nhập mật khẩu mới.
+- **Post-login survey (optional)**: 3 lựa chọn mục tiêu (“Ôn thi”, “Khám phá”, “Giảng dạy”) để cá nhân hoá timeline.
+
+## Stage 1 – Home Dashboard / Timeline Hub
+- Hero card: chào tên người dùng + CTA “Tiếp tục với {agent/topic}” (từ `/memory/last`).
+- KPI mini cards: phút học tuần này, badge mới, streak ngày.
+- **TimelineRail**: horizontal scroll, nodes hiển thị biểu tượng, mốc năm, taglines. Node active highlight gradient, tooltip liệt kê nhân vật chính + CTA “Chat” / “Library”.
+- Section “Nhiệm vụ hôm nay” (top 3 quest) + button “Xem tất cả”.
+- Notification teaser: hiển thị 2 thông báo mới nhất, link tới trang notifications.
+
+## Stage 2 – Library Exploration
+- Sidebar filter (Dynasty, Category, Tags). Chips clickable, filter state hiển thị ở header.
+- Content list: cards với tiêu đề, đoạn mô tả ngắn, badge “Có audio” (tương lai), metadata (nguồn, cập nhật gần nhất).
+- Viewer: top area hiển thị breadcrumb, CTA “Chat với {agent}” và “Lưu vào Bộ sưu tập”.
+- Citation list sticky bên phải (desktop) hoặc accordion (mobile).
+
+## Stage 3 – Conversation (Chat)
+- Header: avatar agent, tên triều đại, badge “Nguồn xác thực” nếu used_docs > 0, button “Đánh giá câu trả lời”.
+- Message list: smooth scroll, bubble corners, timestamp. System chip hiển thị “Router → Agent Trần” khi chuyển agent.
+- Input dock: textarea + actions (attach Library snippet, insert suggestion chips). Show indicators `Router đang định tuyến…` và `Agent đang phản hồi…`.
+- Citation panel: list doc#, nguồn, icon “mở Library”.
+- After completion: show quest progress toast, chips gợi ý hỏi tiếp.
+
+## Stage 4 – Quests & Badges
+- Page hero: progress bar “Chinh phục hành trình” (tổng quest hoàn tất/available).
+- Tabs: `Hằng ngày`, `Theo triều đại`, `Sự kiện đặc biệt`.
+- Quest card: icon, mô tả, điều kiện, reward badge preview. CTA “Đánh dấu hoàn thành” mở modal xác nhận + optional input “Bạn học được gì?”.
+- Badge gallery: grid chips, hover hiển thị tiêu chí.
+
+## Stage 5 – Profile & History
+- Section `Hồ sơ học tập`: avatar, nút “Chỉnh sửa thông tin” (opens slide-over form).
+- Charts: line chart “Phút học theo tuần”, stacked bar “Triều đại đã khám phá”.
+- Timeline “Phiên gần nhất”: liệt kê theo session (agent, chủ đề, thời lượng, nút “mở lại chat”).
+- Preferences: theme toggle, cỡ chữ, ngôn ngữ.
+
+## Stage 6 – Notifications Center
+- List notifications (quest unlock, nội dung Library mới, maintenance). Badge `New` hiển thị 48h.
+- Each item: title, body, timestamp, CTA (ví dụ “Mở quest”, “Xem Library”).
+- Bulk actions: “Đánh dấu tất cả đã đọc”.
+
+## Stage 7 – Resume Journey
+- When user quay lại app (login lại hoặc reload) → splash card “Tiếp tục với {agent/topic}?” / “Bắt đầu hành trình mới”.
+- Provide quick shortcuts to top 3 agents dựa trên lịch sử.
+
+## Cross-cutting UX cues
+- Global toast layer: success (quest unlock), warning (RAG unavailable), error (auth token expired → prompt login).
+- Loading skeletons cho timeline, library viewer, chat list.
+- Light/dark mode support (respect user preference).
+- Keyboard & accessibility: focus states, skip links, `Esc` đóng modal, `Enter` gửi chat.

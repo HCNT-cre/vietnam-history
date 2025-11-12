@@ -1,0 +1,46 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - backend/.env
+    volumes:
+      - ./backend:/app
+      - ./rag:/rag
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+      - redis
+  frontend:
+    image: node:20-alpine
+    working_dir: /app
+    env_file:
+      - frontend/.env.local
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 4173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:4173"
+    depends_on:
+      - backend
+  postgres:
+    image: postgres:14-alpine
+    environment:
+      POSTGRES_DB: vietsaga
+      POSTGRES_USER: viet
+      POSTGRES_PASSWORD: password
+    ports:
+      - "55432:5432"
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+  
+  # Không cần nữa - đã fake bằng LLM
+  # etcd:
+  # minio:
+  # milvus:
+  # neo4j:

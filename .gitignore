@@ -1,0 +1,50 @@
+.DS_Store
+
+# Environment & secrets
+.env
+.env.*
+backend/.env
+**/.env.local
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.py.class
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+.hypothesis/
+
+# Virtual environments
+.venv/
+venv/
+backend/.venv/
+env/
+
+# Node / frontend artifacts
+node_modules/
+**/node_modules/
+*.tsbuildinfo
+frontend/dist/
+frontend/.vite/
+**/.turbo/
+**/.next/
+
+# Build outputs
+dist/
+build/
+tmp/
+*.log
+npm-debug.log*
+yarn-debug.log*
+
+# Editor / tooling
+.idea/
+.vscode/
+*.swp
+
+# RAG / vector data (keep source PDF only)
+rag/*
+!rag/*.pdf

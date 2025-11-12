@@ -1,0 +1,86 @@
+**Vai trò Cursor:** Xây dựng frontend VietSaga ở mức sản phẩm hoàn chỉnh bằng React + Vite + TypeScript + Tailwind. Giao diện phải hoàn toàn bằng tiếng Việt, có đầy đủ auth, state quản lý token, điều hướng bảo vệ, và triển khai mọi luồng theo `/docs/API_SPEC.md`.
+
+## 1. Kiến trúc tổng thể
+- React Router v6 với guard:
+  - Public: `/login`, `/register`, `/reset-password`.
+  - Private: `/` (Dashboard/Timeline), `/chat`, `/quests`, `/library`, `/profile`, `/notifications`.
+- State:
+  - Store auth (Zustand/Context) chứa `accessToken`, `refreshToken`, `user`, `sessionId` hiện tại.
+  - TanStack Query cache dữ liệu `/timeline`, `/quests`, `/library`, `/users/me`, `/notifications`.
+  - Lớp UI (toast, modal, banner) để tái sử dụng.
+- API client `src/lib/api.ts`:
+  - Gói `fetch` với interceptor tự refresh token khi nhận `401 token_expired`.
+  - Tự gắn header `Authorization`, `X-Client-Version`, `Content-Language: vi-VN`.
+  - Xử lý chuẩn JSON error envelope để hiện thông báo tiếng Việt.
+
+## 2. Màn hình đăng nhập/đăng ký
+- **Đăng ký**: form (email, mật khẩu, xác nhận mật khẩu, tên hiển thị). Dùng `zod` để validate (ít nhất 12 ký tự, 1 chữ hoa, 1 ký tự đặc biệt). Sau khi thành công hiển thị thông báo “Kiểm tra email để xác minh tài khoản”.
+- **Đăng nhập**: email + mật khẩu, có “Ghi nhớ”. Nếu BE trả `account_locked/token_reused`, hiển thị tiếng Việt rõ ràng.
+- **Quên mật khẩu**: bước 1 nhập email (show toast “Đã gửi email”); bước 2 (từ link) nhập mật khẩu mới.
+- Lưu token bằng `localStorage` (dev). Khi logout hoặc token rotate, xoá sạch state.
+
+## 3. Layout & điều hướng
+- Layout bảo vệ: sidebar (desktop) + topbar (mobile). Hiển thị logo, tên người dùng, icon thông báo (badge số lượng chưa đọc), nút logout.
+- Menu: `Trang chủ`, `Chat`, `Thư viện`, `Nhiệm vụ`, `Hồ sơ`.
+- Banner toàn cục để báo trạng thái RAG, bảo trì.
+
+## 4. Trang Trang chủ / Timeline (`/`)
+- Hero card: chào `[Tên]`, nút “Tiếp tục với {agent/topic}” (gọi `/memory/last`).
+- Stats: phút học trong tuần, số badge, streak.
+- Component `TimelineRail`: scroll ngang, node gồm tên triều đại, năm, tagline ngắn, nút “Chat” và “Xem thư viện”.
+- “Hành trình gợi ý”: card dựa vào `/progress/summary` (ví dụ “Bạn chưa khám phá Nhà Lý”).
+
+## 5. Trang Chat (`/chat`)
+- Nhận query param `agent`, `topic`, `session` để prefill.
+- Thành phần: `ChatHeader` (avatar, tên agent, tone), `MessageList`, `ChatInput`, `SuggestedChips`, `CitationPanel`.
+- Luồng:
+  1. Người dùng nhập tin → đẩy vào `messages` local.
+  2. Gọi `/router` với toàn bộ history.
+  3. Khi nhận `{call_agent, query_to_agent}`, gọi `/agents/chat` (truyền `session_id`).
+  4. Hiển thị trạng thái “Đang định tuyến…/Đang chờ agent…”.
+  5. Sau khi nhận `answer`, render markdown + panel nguồn (gọi `/library/documents/{id}` để lấy `source`).
+  6. Gọi song song `PUT /memory/last` và `/quests/{id}/progress` (nếu có quest liên quan).
+- Bổ sung nút “Đánh giá câu trả lời” → `/agents/feedback`.
+- Nếu `used_docs` rỗng → hiển thị banner “Chưa có nguồn kèm theo”.
+
+## 6. Trang Nhiệm vụ (`/quests`)
+- Tabs: `Hôm nay`, `Theo triều đại`, `Sự kiện đặc biệt`.
+- Card nhiệm vụ: icon, tiêu đề, mô tả ngắn, trạng thái (Locked/In progress/Done), phần thưởng badge.
+- Nút “Đánh dấu hoàn thành” mở modal xác nhận (cho phép nhập note) → gọi `/quests/{id}/progress`.
+- Thanh tiến độ tổng dựa trên `/progress/summary`.
+
+## 7. Trang Thư viện (`/library`)
+- Sidebar filter theo triều đại, loại nội dung, tag (chips). Kết quả hiển thị dạng lưới card.
+- Viewer markdown (react-markdown + remark-gfm), sticky panel citation.
+- Ô tìm kiếm gọi `/search` (debounce 400ms).
+- CTA “Chat với nhân vật này” điều hướng `/chat?agent=...&topic=...`.
+
+## 8. Trang Hồ sơ & Thông báo
+- Hồ sơ: hiển thị `/users/me`, cho phép chỉnh tên, avatar, tuỳ chọn theme/cỡ chữ. Chart đơn giản về phút học/triều đại.
+- Lịch sử gần đây: data `/users/me/history`, nút “Mở lại chat”.
+- Thông báo (`/notifications`): danh sách, action “Đánh dấu đã đọc” từng item hoặc tất cả.
+
+## 9. Trải nghiệm lỗi & tải
+- Skeleton cho timeline, chat list, library viewer.
+- Toast thân thiện khi gặp lỗi (dịch mã lỗi từ API).
+- Error boundary chung để xử lý mất mạng.
+
+## 10. Kiểm thử (Vitest + RTL)
+- Form auth (validate + xử lý lỗi BE).
+- Guard route: chưa đăng nhập → bị chuyển hướng `/login`.
+- Timeline node click → `navigate('/chat?agent=...')`.
+- Chat flow: mock API đảm bảo gọi `/router` trước `/agents/chat` và hiển thị loading đúng.
+- Library search debounce.
+- Quest card click gọi đúng endpoint.
+
+## 11. Hiệu năng & truy cập
+- Code-splitting cho Chat, Library.
+- Hỗ trợ `prefers-reduced-motion`, focus rõ ràng.
+- Phím tắt: `Enter` gửi, `Shift+Enter` xuống dòng, `/` mở tìm kiếm.
+
+## 12. Điều kiện hoàn thành
+1. Người dùng có thể đăng ký → đăng nhập → truy cập mọi trang bảo vệ.
+2. Luồng timeline → chat → quest → profile hoạt động end-to-end.
+3. UI 100% tiếng Việt, responsive ≥ 320px.
+4. Tests theo `docs/TESTING.prompt` pass, lint sạch.
+5. Không còn code mẫu Vite, cấu trúc thư mục rõ ràng.
