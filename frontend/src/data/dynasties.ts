@@ -1,4 +1,5 @@
 import lyCongUanImage from "../assets/ly_cong_uan.jpg";
+import userImage from "../assets/user.png";
 
 export type HeroPersona = {
   id: string;
@@ -33,7 +34,7 @@ export const dynastyShowcase: DynastyShowcase[] = [
         name: "Lý Thường Kiệt",
         title: "Danh tướng phòng tuyến Như Nguyệt",
         description: "Tác giả bài thơ Nam quốc sơn hà lưu danh",
-        image: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=401&q=80",
+        image: userImage,
         agentId: "agent_ly",
       },
     ],
@@ -47,7 +48,7 @@ export const dynastyShowcase: DynastyShowcase[] = [
         name: "Trần Hưng Đạo",
         title: "Quốc công Tiết chế",
         description: "Ba lần chỉ huy kháng chiến chống Nguyên Mông",
-        image: "https://images.unsplash.com/photo-1504593811423-6dd665756598?auto=format&fit=crop&w=400&q=80",
+        image: userImage,
         agentId: "agent_tran",
       },
       {
@@ -55,7 +56,7 @@ export const dynastyShowcase: DynastyShowcase[] = [
         name: "Trần Nhân Tông",
         title: "Vị vua Phật hoàng",
         description: "Nhà lãnh đạo kiệt xuất, sáng lập Thiền phái Trúc Lâm",
-        image: "https://images.unsplash.com/photo-1504257432389-52343af06ae3?auto=format&fit=crop&w=400&q=80",
+        image: userImage,
         agentId: "agent_tran",
       },
     ],
@@ -69,7 +70,7 @@ export const dynastyShowcase: DynastyShowcase[] = [
         name: "Lê Lợi",
         title: "Anh hùng Lam Sơn",
         description: "Lãnh đạo khởi nghĩa, dựng nên triều Hậu Lê",
-        image: "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=400&q=80",
+        image: userImage,
         agentId: "agent_le_so",
       },
       {
@@ -77,7 +78,7 @@ export const dynastyShowcase: DynastyShowcase[] = [
         name: "Nguyễn Trãi",
         title: "Khai quốc công thần",
         description: "Tác giả Bình Ngô đại cáo, nhà tư tưởng lỗi lạc",
-        image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80",
+        image: userImage,
         agentId: "agent_le_so",
       },
     ],
@@ -91,7 +92,7 @@ export const dynastyShowcase: DynastyShowcase[] = [
         name: "Gia Long",
         title: "Vị vua lập nên triều Nguyễn",
         description: "Thống nhất đất nước đầu thế kỷ XIX",
-        image: "https://images.unsplash.com/photo-1456327102063-fb5054efe647?auto=format&fit=crop&w=400&q=80",
+        image: userImage,
         agentId: "agent_nguyen",
       },
       {
@@ -99,7 +100,7 @@ export const dynastyShowcase: DynastyShowcase[] = [
         name: "Nguyễn Đình Chiểu",
         title: "Nhà thơ yêu nước",
         description: "Hung thần của bọn cướp nước trong văn chương",
-        image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=400&q=80",
+        image: userImage,
         agentId: "agent_nguyen",
       },
     ],
