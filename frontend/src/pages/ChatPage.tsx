@@ -328,7 +328,13 @@ const ChatPage = () => {
 
       // Nếu vào từ Timeline với agent cụ thể
       if (agentFromQuery && agentFromQuery !== "agent_general_search") {
-        const existing = conversations.find(c => c.agent_id === agentFromQuery);
+        // Fix: Check both agent_id AND hero_name to avoid opening wrong chat
+        const heroNameParam = params.get("hero");
+        const existing = conversations.find(c => 
+          c.agent_id === agentFromQuery && 
+          (!heroNameParam || c.hero_name === heroNameParam)
+        );
+        
         if (existing) {
           await loadConversationHistory(existing);
         } else {

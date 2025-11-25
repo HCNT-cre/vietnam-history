@@ -155,20 +155,34 @@ ANCESTRAL_KEYWORDS = (
     "văn lang",
     "âu lạc",
 )
-ROYAL_TOKENS = ("nhà ", "triều", "hoàng", "đế", "vua", "hoàng đế", "đại vương", "thái tổ", "thái tông")
-COMMANDER_KEYWORDS = ("tướng", "khởi nghĩa", "nghĩa quân", "quốc công", "trận", "chiến", "đạo")
+ROYAL_TOKENS = ("hoàng đế", "vua", "đại vương", "thái tổ", "thái tông", "nhân tông", "thánh tông", "minh mạng", "tự đức")
+COMMANDER_KEYWORDS = ("tướng", "khởi nghĩa", "nghĩa quân", "quốc công", "trận", "chiến", "đạo", "tiết chế")
 REVOLUTION_KEYWORDS = (
     "cách mạng",
-    "kháng chiến",
     "chủ tịch",
     "việt minh",
     "độc lập",
     "xã hội chủ nghĩa",
-    "hiện đại",
-    "kháng pháp",
-    "kháng mỹ",
+    "kháng chiến chống pháp",
+    "kháng chiến chống mỹ",
+    "kháng chiến chống thực dân",
+    "kháng chiến chống đế quốc",
+    "giải phóng",
+    "đảng cộng sản",
 )
-SCHOLAR_KEYWORDS = ("sĩ phu", "nhà nho", "khoa bảng", "văn hiến", "học giả", "thi cử", "nho học")
+MODERN_KEYWORDS = (
+    "hiện đại",
+    "thế kỷ 20",
+    "thế kỷ 21",
+    "cộng hòa",
+    "tổng thống",
+    "thủ tướng",
+    "thủ tướng",
+    "đổi mới",
+)
+ELDER_KEYWORDS = ("hồ chí minh", "bác hồ", "nguyễn ái quốc")
+CONTROVERSIAL_KEYWORDS = ("nguyễn văn thiệu", "bảo đại")
+SCHOLAR_KEYWORDS = ("sĩ phu", "nhà nho", "khoa bảng", "văn hiến", "học giả", "thi cử", "nho học", "công thần")
 PRONOUNS_TO_REWRITE = {"ta", "trẫm", "thiếp", "ta đây", "tôi", "chúng ta"}
 
 
@@ -181,7 +195,25 @@ def _normalize_space(text: str | None) -> str:
     return " ".join(stripped.split())
 
 
-def _select_voice_setting(profile: AgentProfile) -> VoiceSetting:
+def _select_voice_setting(profile: AgentProfile, hero_name: str | None = None) -> VoiceSetting:
+    # 1. Check hero_name specific overrides first
+    if hero_name:
+        lower_hero = hero_name.lower()
+        if any(k in lower_hero for k in ELDER_KEYWORDS):
+            return VoiceSetting(
+                pronoun="Bác",
+                audience="các cháu",
+                tone_hint="giọng ấm áp, ân cần, gần gũi như người cha già dân tộc",
+                greeting_template="Chào {audience}, {pronoun} là {persona}.",
+            )
+        if any(k in lower_hero for k in CONTROVERSIAL_KEYWORDS):
+            return VoiceSetting(
+                pronoun="tôi",
+                audience="quý vị",
+                tone_hint="giọng trang trọng, lịch sự nhưng có phần xa cách, mang nhiều tâm sự",
+                greeting_template="Chào {audience}, {pronoun} là {persona}.",
+            )
+
     blob_parts = [
         profile.persona_name or "",
         profile.period_label or "",
@@ -191,6 +223,20 @@ def _select_voice_setting(profile: AgentProfile) -> VoiceSetting:
     ]
     blob = " ".join(part for part in blob_parts if part).lower()
     normalized_period = _normalize_space(profile.period_label)
+    if any(keyword in blob for keyword in REVOLUTION_KEYWORDS):
+        return VoiceSetting(
+            pronoun="tôi",
+            audience="các đồng chí",
+            tone_hint="giọng thời kháng chiến, giản dị mà giàu nhiệt huyết cách mạng",
+            greeting_template="Chào {audience}, tôi là {persona}, kể chuyện {period}.",
+        )
+    if any(keyword in blob for keyword in MODERN_KEYWORDS):
+        return VoiceSetting(
+            pronoun="tôi",
+            audience="các bạn",
+            tone_hint="giọng hiện đại, cởi mở, khách quan",
+            greeting_template="Chào {audience}, tôi là {persona}, rất vui được chia sẻ về {period}.",
+        )
     if any(keyword in blob for keyword in ANCESTRAL_KEYWORDS):
         return VoiceSetting(
             pronoun="ta",
@@ -198,12 +244,12 @@ def _select_voice_setting(profile: AgentProfile) -> VoiceSetting:
             tone_hint="giọng huyền sử, nhiều hình ảnh núi sông và truyền thuyết nguồn cội",
             greeting_template="Chào {audience}, ta là {persona}, người giữ hồn {period}.",
         )
-    if any(token in normalized_period for token in ROYAL_TOKENS) or any(token in blob for token in ROYAL_TOKENS):
+    if any(token in blob for token in ROYAL_TOKENS):
         return VoiceSetting(
-            pronoun="ta",
-            audience="các con",
-            tone_hint="giọng đế vương cổ kính, câu văn chậm rãi, dùng điển tích và từ Hán Việt",
-            greeting_template="Chào {audience}, ta là {persona}, đang trị vì {period}.",
+            pronoun="trẫm",
+            audience="các khanh",
+            tone_hint="giọng đế vương cổ kính, uy nghi nhưng bao dung",
+            greeting_template="Chào {audience}, trẫm là {persona}, đang trị vì {period}.",
         )
     if any(keyword in blob for keyword in COMMANDER_KEYWORDS):
         return VoiceSetting(
@@ -212,19 +258,12 @@ def _select_voice_setting(profile: AgentProfile) -> VoiceSetting:
             tone_hint="giọng quân lệnh dứt khoát, khích lệ khí phách chiến trận",
             greeting_template="Chào {audience}, ta là {persona}, người dẫn dắt nghĩa quân thời {period}.",
         )
-    if any(keyword in blob for keyword in REVOLUTION_KEYWORDS):
-        return VoiceSetting(
-            pronoun="ta",
-            audience="các đồng chí",
-            tone_hint="giọng thời kháng chiến, giản dị mà giàu nhiệt huyết cách mạng",
-            greeting_template="Chào {audience}, ta là {persona}, kể con nghe chuyện {period}.",
-        )
     if any(keyword in blob for keyword in SCHOLAR_KEYWORDS):
         return VoiceSetting(
             pronoun="ta",
-            audience="các trò",
+            audience="các hữu",
             tone_hint="giọng nho nhã của sĩ phu, chữ nghĩa chặt chẽ, điềm đạm",
-            greeting_template="Chào {audience}, ta là {persona}, xin giảng chuyện {period}.",
+            greeting_template="Chào {audience}, ta là {persona}, xin đàm đạo chuyện {period}.",
         )
     return VOICE_DEFAULT
 
@@ -661,7 +700,7 @@ async def chat_with_agent(
     ).all()
     
     # Build system prompt và messages
-    system_prompt = _compose_system_prompt(payload.agent_id)
+    system_prompt = _compose_system_prompt(payload.agent_id, hero_name=chat_session.hero_name)
     
     # Build messages list với history
     messages_for_llm = [{"role": "system", "content": system_prompt}]
@@ -708,7 +747,7 @@ async def chat_with_agent(
             
             # Streaming xong, generate fake sources và graph
             fake_sources = _extract_sources_from_answer(full_answer, payload.agent_id)
-            fake_graph_links = _extract_graph_links_from_answer(full_answer, payload.agent_id)
+            fake_graph_links = _extract_graph_links_from_answer(full_answer, payload.agent_id, hero_name=chat_session.hero_name)
             
             # Lưu vào DB
             session.add(SessionMessage(session_id=chat_session.id, role="user", content=payload.query))
@@ -814,9 +853,12 @@ def _extract_sources_from_answer(answer: str, agent_id: str) -> list[chat_schema
         return sources
 
 
-def _extract_graph_links_from_answer(answer: str, agent_id: str) -> list[chat_schema.GraphLink]:
+def _extract_graph_links_from_answer(answer: str, agent_id: str, hero_name: str | None = None) -> list[chat_schema.GraphLink]:
     """Fake graph links như đi trên đồ thị tri thức."""
     profile = _get_agent_profile(agent_id)
+    
+    # Use specific hero_name if provided, otherwise fallback to profile default
+    final_persona = hero_name or profile.persona_name
     
     system_prompt = (
         "Bạn là hệ thống Knowledge Graph. "
@@ -834,7 +876,7 @@ def _extract_graph_links_from_answer(answer: str, agent_id: str) -> list[chat_sc
     user_prompt = (
         f"Câu trả lời:\n\n{answer}\n\n"
         f"Triều đại: {profile.period_label}\n"
-        f"Nhân vật: {profile.persona_name}"
+        f"Nhân vật: {final_persona}"
     )
     
     try:
@@ -867,13 +909,13 @@ def _extract_graph_links_from_answer(answer: str, agent_id: str) -> list[chat_sc
         # Fallback: tạo quan hệ cơ bản
         return [
             chat_schema.GraphLink(
-                relation=f"{profile.period_label} → {profile.persona_name}",
-                description=f"{profile.persona_name} là nhân vật tiêu biểu của {profile.period_label}",
+                relation=f"{profile.period_label} → {final_persona}",
+                description=f"{final_persona} là nhân vật tiêu biểu của {profile.period_label}",
                 chunk_id=100,
             ),
             chat_schema.GraphLink(
-                relation=f"{profile.persona_name} → Sự kiện lịch sử",
-                description=f"Các sự kiện quan trọng gắn liền với {profile.persona_name}",
+                relation=f"{final_persona} → Sự kiện lịch sử",
+                description=f"Các sự kiện quan trọng gắn liền với {final_persona}",
                 chunk_id=200,
             ),
         ]
@@ -885,6 +927,7 @@ def _build_answer_with_history(
     docs: list[dict],
     graph_links: list[dict],
     history_messages: list[SessionMessage],
+    hero_name: str | None = None,
 ) -> tuple[str, dict | None]:
     """Build answer với lịch sử hội thoại (không cần RAG)."""
     # Không cần check docs nữa vì giờ fake hết
@@ -898,7 +941,7 @@ def _build_answer_with_history(
         "- Tự nhiên, không cứng nhắc"
     )
     
-    system_prompt = _compose_system_prompt(agent_id)
+    system_prompt = _compose_system_prompt(agent_id, hero_name=hero_name)
     
     # Build messages list với history
     messages = [{"role": "system", "content": system_prompt}]
@@ -1087,15 +1130,19 @@ def _normalize_text(text: str) -> str:
     return " ".join(cleaned.split())
 
 
-def _compose_system_prompt(agent_id: str) -> str:
+def _compose_system_prompt(agent_id: str, hero_name: str | None = None) -> str:
     profile = _get_agent_profile(agent_id)
-    voice = _select_voice_setting(profile)
+    voice = _select_voice_setting(profile, hero_name)
+    
+    # Use specific hero_name if provided, otherwise fallback to profile default
+    final_persona = hero_name or profile.persona_name
+    
     base = (
         "Bạn là nhân vật lịch sử tương tác trong dự án 'Thiết kế mô hình tương tác lịch sử'. "
         "Chỉ dùng dữ liệu được cung cấp và trả lời bằng tiếng Việt, định dạng markdown với tiêu đề ngắn, in đậm và danh sách."
     )
     persona_line = (
-        f"Nhập vai {profile.persona_name}, đại diện cho {profile.period_label}"
+        f"Nhập vai {final_persona}, đại diện cho {profile.period_label}"
         f"{f' ({profile.year_range})' if profile.year_range else ''}."
     )
     voice_rule = (
